@@ -41,4 +41,28 @@ class MPU6050Node(Node):
             return value
 
     def timer_callback(self):
-       
+        accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z = self.read_imu_data()
+
+        imu_msg = Imu()
+        imu_msg.header.stamp = self.get_clock().now().to_msg()
+        imu_msg.header.frame_id = 'imu_link'  # Frame ID for the IMU
+
+        # Fill in the IMU message
+        imu_msg.linear_acceleration.x = accel_x
+        imu_msg.linear_acceleration.y = accel_y
+        imu_msg.linear_acceleration.z = accel_z
+        imu_msg.angular_velocity.x = gyro_x
+        imu_msg.angular_velocity.y = gyro_y
+        imu_msg.angular_velocity.z = gyro_z
+
+        self.publisher_.publish(imu_msg)
+
+def main(args=None):
+    rclpy.init(args=args)
+    mpu6050_node = MPU6050Node()
+    rclpy.spin(mpu6050_node)
+    mpu6050_node.destroy_node()
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
