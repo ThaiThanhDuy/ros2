@@ -81,4 +81,12 @@ class ImuOrientationSimulator(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    imu_orientation_simulator = Im
+    imu_orientation_simulator = ImuOrientationSimulator()
+    try:
+        rclpy.spin(imu_orientation_simulator)
+    except KeyboardInterrupt:
+        imu_orientation_simulator.destroy_node()
+        rclpy.shutdown()
+
+if __name __ == '__main__':
+    main() 
