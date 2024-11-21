@@ -3,7 +3,6 @@ from rclpy.node import Node
 from sensor_msgs.msg import Imu
 from geometry_msgs.msg import TransformStamped
 import numpy as np
-import time
 
 class ImuOrientationSimulator(Node):
     def __init__(self):
@@ -76,4 +75,10 @@ class ImuOrientationSimulator(Node):
         """Convert Euler angles to quaternion."""
         qx = np.sin(roll / 2) * np.cos(pitch / 2) * np.cos(yaw / 2) - np.cos(roll / 2) * np.sin(pitch / 2) * np.sin(yaw / 2)
         qy = np.cos(roll / 2) * np.sin(pitch / 2) * np.cos(yaw / 2) + np.sin(roll / 2) * np.cos(pitch / 2) * np.sin(yaw / 2)
-        qz = np.cos(roll / 2) * np.cos(pitch / 2) * np.sin(yaw / 2) - np.sin(roll
+        qz = np.cos(roll / 2) * np.cos(pitch / 2) * np.sin(yaw / 2) - np.sin(roll / 2) * np.sin(pitch / 2) * np.cos(yaw / 2)
+        qw = np.cos(roll / 2) * np.cos(pitch / 2) * np.cos(yaw / 2) + np.sin(roll / 2) * np.sin(pitch / 2) * np.sin(yaw / 2)
+        return [qx, qy, qz, qw]
+
+def main(args=None):
+    rclpy.init(args=args)
+    imu_orientation_simulator = Im
