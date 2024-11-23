@@ -3,10 +3,11 @@ from rclpy.node import Node
 from sensor_msgs.msg import Imu
 import smbus2
 import math
-import time
+import tf2_ros
+import geometry_msgs.msg
 
 class MPU6050:
-    def __init__(self, bus_number=1, address=0x68):
+    def __init__(self, bus_number=0, address=0x68):  # Changed bus_number to 0
         self.bus = smbus2.SMBus(bus_number)
         self.address = address
         
@@ -42,7 +43,8 @@ class ImuPublisher(Node):
     def __init__(self):
         super().__init__('imu_publisher')
         self.imu_pub = self.create_publisher(Imu, 'imu_data', 10)
-        self.mpu = MPU6050()
+        self.tf_broadcaster = tf2_ros.TransformBroadcaster(self)
+        self.mpu = MPU6050()  # Initialize MPU6050 with bus_number=0
 
         # Initialize orientation variables
         self.angle_x = 0.0
@@ -69,16 +71,17 @@ class ImuPublisher(Node):
         # Convert angles to quaternion
         qx = math.sin(self.angle_x / 2)
         qy = math.sin(self.angle_y / 2)
-        qw = math.cos(self.angle_x / 2) * math.cos(self.angle_y / 2)
+        qz = math.sin(self.angle_z / 2)  # Add this line to calculate qz
+        qw = math.cos(self.angle_x / 2) * math.cos(self.angle_y / 2) * math.cos(self.angle_z / 2) + math.sin(self.angle_x / 2) * math.sin(self.angle_y / 2) * math.sin(self.angle_z / 2)
 
         imu_msg = Imu()
         imu_msg.header.stamp = self.get_clock().now().to_msg()
-        imu_msg.header.frame_id = 'imu_link'
+        imu_msg.header.frame_id = 'base_link'
 
         # Set calculated orientation as quaternion
         imu_msg.orientation.x = qx
-        imu_msg.orientation.y = qy
-        imu_msg.orientation.z = 0.0  # This is a simplified example; you may want to calculate this as well
+        imu_msg.orientation .y = qy
+        imu_msg.orientation.z = qz  # Set the calculated qz
         imu_msg.orientation.w = qw
 
         # Set angular velocity
@@ -89,25 +92,28 @@ class ImuPublisher(Node):
         # Set linear acceleration
         imu_msg.linear_acceleration.x = accel_x / 16384.0  # Convert to g
         imu_msg.linear_acceleration.y = accel_y / 16384.0
-        imu_msg.linear_acceleration.z = accel_z / 163 84.0
+        imu_msg.linear_acceleration.z = accel_z / 16384.0
 
         self.imu_pub.publish(imu_msg)
         self.get_logger().info(f'Published IMU data: {imu_msg}')
-               # Create and publish the transform
+
+        # Publish the transform
+        self.publish_transform(qx, qy, qz, qw)
+
+    def publish_transform(self, qx, qy, qz, qw):
         t = geometry_msgs.msg.TransformStamped()
         t.header.stamp = self.get_clock().now().to_msg()
-        t.header.frame_id = 'base_link'  # Change this to your base frame
-        t.child_frame_id = 'imu_link'  # Change this to your IMU frame
+        t.header.frame_id = 'base_link'
+        t.child_frame_id = 'imu_link'
         t.transform.translation.x = 0.0
         t.transform.translation.y = 0.0
         t.transform.translation.z = 0.0
         t.transform.rotation.x = qx
         t.transform.rotation.y = qy
-        t.transform.rotation.z = 0.0  # This is a simplified example; you may want to calculate this as well
+        t.transform.rotation.z = qz
         t.transform.rotation.w = qw
 
         self.tf_broadcaster.sendTransform(t)
-        self.get_logger().info('Published TF for IMU')
 
 def main(args=None):
     rclpy.init(args=args)
