@@ -73,7 +73,7 @@ class ImuPublisher(Node):
 
         imu_msg = Imu()
         imu_msg.header.stamp = self.get_clock().now().to_msg()
-        imu_msg.header.frame_id = 'base_link'
+        imu_msg.header.frame_id = 'imu_link'
 
         # Set calculated orientation as quaternion
         imu_msg.orientation.x = qx
@@ -93,6 +93,21 @@ class ImuPublisher(Node):
 
         self.imu_pub.publish(imu_msg)
         self.get_logger().info(f'Published IMU data: {imu_msg}')
+               # Create and publish the transform
+        t = geometry_msgs.msg.TransformStamped()
+        t.header.stamp = self.get_clock().now().to_msg()
+        t.header.frame_id = 'base_link'  # Change this to your base frame
+        t.child_frame_id = 'imu_link'  # Change this to your IMU frame
+        t.transform.translation.x = 0.0
+        t.transform.translation.y = 0.0
+        t.transform.translation.z = 0.0
+        t.transform.rotation.x = qx
+        t.transform.rotation.y = qy
+        t.transform.rotation.z = 0.0  # This is a simplified example; you may want to calculate this as well
+        t.transform.rotation.w = qw
+
+        self.tf_broadcaster.sendTransform(t)
+        self.get_logger().info('Published TF for IMU')
 
 def main(args=None):
     rclpy.init(args=args)
