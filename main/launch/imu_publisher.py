@@ -10,6 +10,8 @@ class ImuPublisher(Node):
         self.imu_sub = self.create_subscription(Float32MultiArray, 'imupub', self.imu_callback, 10)
 
     def imu_callback(self, msg):
+        # Print the received data to the console
+         self.get_logger().info(f'Received IMU data: {msg.data}')
         if len(msg.data) < 10:
             self.get_logger().warn('Received message with insufficient data. Expected at least 10 elements.')
             return
