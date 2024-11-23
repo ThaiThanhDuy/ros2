@@ -44,30 +44,52 @@ class ImuPublisher(Node):
         self.imu_pub = self.create_publisher(Imu, 'imu_data', 10)
         self.mpu = MPU6050()
 
+        # Initialize orientation variables
+        self.angle_x = 0.0
+        self.angle_y = 0.0
+        self.angle_z = 0.0
+        self.alpha = 0.98  # Complementary filter constant
+
         self.timer = self.create_timer(0.1, self.publish_imu_data)  # Publish every 100 ms
 
     def publish_imu_data(self):
         accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z = self.mpu.read_raw_data()
 
+        # Convert gyro rates from degrees/sec to radians/sec
+        gyro_x_rad = gyro_x * (math.pi / 180)
+        gyro_y_rad = gyro_y * (math.pi / 180)
+        gyro_z_rad = gyro_z * (math.pi / 180)
+
+        # Simple complementary filter to estimate orientation
+        dt = 0.1  # Time interval (100 ms)
+        self.angle_x = self.alpha * (self.angle_x + gyro_x_rad * dt) + (1 - self.alpha) * math.atan2(accel_y, accel_z)
+        self.angle_y = self.alpha * (self.angle_y + gyro_y_rad * dt) + (1 - self.alpha) * math.atan2(-accel_x, accel_z)
+        self.angle_z += gyro_z_rad * dt  # Assuming no drift correction on Z
+
+        # Convert angles to quaternion
+        qx = math.sin(self.angle_x / 2)
+        qy = math.sin(self.angle_y / 2)
+        qw = math.cos(self.angle_x / 2) * math.cos(self.angle_y / 2)
+
         imu_msg = Imu()
         imu_msg.header.stamp = self.get_clock().now().to_msg()
         imu_msg.header.frame_id = 'base_link'
 
-        # Assuming no orientation data is available, set to zero
-        imu_msg.orientation.x = 0.0
-        imu_msg.orientation.y = 0.0
-        imu_msg.orientation.z = 0.0
-        imu_msg.orientation.w = 1.0  # No rotation
+        # Set calculated orientation as quaternion
+        imu_msg.orientation.x = qx
+        imu_msg.orientation.y = qy
+        imu_msg.orientation.z = 0.0  # This is a simplified example; you may want to calculate this as well
+        imu_msg.orientation.w = qw
 
         # Set angular velocity
-        imu_msg.angular_velocity.x = gyro_x * (math.pi / 180)  # Convert to radians
-        imu_msg.angular_velocity.y = gyro_y * (math.pi / 180)
-        imu_msg.angular_velocity.z = gyro_z * (math.pi / 180)
+        imu_msg.angular_velocity.x = gyro_x_rad
+        imu_msg.angular_velocity.y = gyro_y_rad
+        imu_msg.angular_velocity.z = gyro_z_rad
 
         # Set linear acceleration
         imu_msg.linear_acceleration.x = accel_x / 16384.0  # Convert to g
         imu_msg.linear_acceleration.y = accel_y / 16384.0
-        imu_msg.linear_acceleration.z = accel_z / 16384.0
+        imu_msg.linear_acceleration.z = accel_z / 163 84.0
 
         self.imu_pub.publish(imu_msg)
         self.get_logger().info(f'Published IMU data: {imu_msg}')
