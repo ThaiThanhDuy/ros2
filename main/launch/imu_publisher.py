@@ -38,13 +38,7 @@ class MPU6050:
         if value >= 32768:
             value -= 65536
         return value
-        
-    def euler_to_quaternion(roll, pitch, yaw):
-    qx = math.sin(roll / 2) * math.cos(pitch / 2) * math.cos(yaw / 2) - math.cos(roll / 2) * math.sin(pitch / 2) * math.sin(yaw / 2)
-    qy = math.cos(roll / 2) * math.sin(pitch / 2) * math.cos(yaw / 2) + math.sin(roll / 2) * math.cos(pitch / 2) * math.sin(yaw / 2)
-    qz = math.cos(roll / 2) * math.cos(pitch / 2) * math.sin(yaw / 2) - math.sin(roll / 2) * math.sin(pitch / 2) * math.cos(yaw / 2)
-    qw = math.cos(roll / 2) * math.cos(pitch / 2) * math.cos(yaw / 2) + math.sin(roll / 2) * math.sin(pitch / 2) * math.sin(yaw / 2)
-        return qx, qy, qz, qw
+
 class ImuPublisher(Node):
     def __init__(self):
         super().__init__('imu_publisher')
@@ -75,20 +69,16 @@ class ImuPublisher(Node):
         self.angle_z += gyro_z_rad * dt  # Assuming no drift correction on Z
 
         # Convert angles to quaternion
-        qx = math.sin(self.angle_x / 2)
-        qy = math.sin(self.angle_y / 2)
-        qz = math.sin(self.angle_z / 2)  # Add this line to calculate qz
-        qw = math.cos(self.angle_x / 2) * math.cos(self.angle_y / 2) * math.cos(self.angle_z / 2) + math.sin(self.angle_x / 2) * math.sin(self.angle_y / 2) * math.sin(self.angle_z / 2)
+        qx, qy, qz, qw = self.euler_to_quaternion(self.angle_x, self.angle_y, self.angle_z)
 
         imu_msg = Imu()
         imu_msg.header.stamp = self.get_clock().now().to_msg()
         imu_msg.header.frame_id = 'base_link'
-        
-        qx, qy, qz, qw = euler_to_quaternion(self.angle_x, self.angle_y, self.angle_z)
+
         # Set calculated orientation as quaternion
         imu_msg.orientation.x = qx
-        imu_msg.orientation .y = qy
-        imu_msg.orientation.z = qz  # Set the calculated qz
+        imu_msg.orientation.y = qy
+        imu_msg.orientation.z = qz
         imu_msg.orientation.w = qw
 
         # Set angular velocity
@@ -99,15 +89,11 @@ class ImuPublisher(Node):
         # Set linear acceleration
         imu_msg.linear_acceleration.x = accel_x / 16384.0  # Convert to g
         imu_msg.linear_acceleration.y = accel_y / 16384.0
-        imu_msg.linear_acceleration.z = accel_z / 16384.0
+        imu_msg.linear_acceleration .y = accel_z / 16384.0  # Convert to g
 
         self.imu_pub.publish(imu_msg)
-        self.get_logger().info(f'Published IMU data: {imu_msg}')
 
         # Publish the transform
-        self.publish_transform(qx, qy, qz, qw)
-
-    def publish_transform(self, qx, qy, qz, qw):
         t = geometry_msgs.msg.TransformStamped()
         t.header.stamp = self.get_clock().now().to_msg()
         t.header.frame_id = 'base_link'
@@ -121,6 +107,14 @@ class ImuPublisher(Node):
         t.transform.rotation.w = qw
 
         self.tf_broadcaster.sendTransform(t)
+
+    @staticmethod
+    def euler_to_quaternion(roll, pitch, yaw):
+        qx = math.sin(roll / 2) * math.cos(pitch / 2) * math.cos(yaw / 2) - math.cos(roll / 2) * math.sin(pitch / 2) * math.sin(yaw / 2)
+        qy = math.cos(roll / 2) * math.sin(pitch / 2) * math.cos(yaw / 2) + math.sin(roll / 2) * math.cos(pitch / 2) * math.sin(yaw / 2)
+        qz = math.cos(roll / 2) * math.cos(pitch / 2) * math.sin(yaw / 2) - math.sin(roll / 2) * math.sin(pitch / 2) * math.cos(yaw / 2)
+        qw = math.cos(roll / 2) * math.cos(pitch / 2) * math.cos(yaw / 2) + math.sin(roll / 2) * math.sin(pitch / 2) * math.sin(yaw / 2)
+        return qx, qy, qz, qw
 
 def main(args=None):
     rclpy.init(args=args)
