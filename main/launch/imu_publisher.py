@@ -38,7 +38,13 @@ class MPU6050:
         if value >= 32768:
             value -= 65536
         return value
-
+        
+    def euler_to_quaternion(roll, pitch, yaw):
+    qx = math.sin(roll / 2) * math.cos(pitch / 2) * math.cos(yaw / 2) - math.cos(roll / 2) * math.sin(pitch / 2) * math.sin(yaw / 2)
+    qy = math.cos(roll / 2) * math.sin(pitch / 2) * math.cos(yaw / 2) + math.sin(roll / 2) * math.cos(pitch / 2) * math.sin(yaw / 2)
+    qz = math.cos(roll / 2) * math.cos(pitch / 2) * math.sin(yaw / 2) - math.sin(roll / 2) * math.sin(pitch / 2) * math.cos(yaw / 2)
+    qw = math.cos(roll / 2) * math.cos(pitch / 2) * math.cos(yaw / 2) + math.sin(roll / 2) * math.sin(pitch / 2) * math.sin(yaw / 2)
+        return qx, qy, qz, qw
 class ImuPublisher(Node):
     def __init__(self):
         super().__init__('imu_publisher')
@@ -77,7 +83,8 @@ class ImuPublisher(Node):
         imu_msg = Imu()
         imu_msg.header.stamp = self.get_clock().now().to_msg()
         imu_msg.header.frame_id = 'base_link'
-
+        
+        qx, qy, qz, qw = euler_to_quaternion(self.angle_x, self.angle_y, self.angle_z)
         # Set calculated orientation as quaternion
         imu_msg.orientation.x = qx
         imu_msg.orientation .y = qy
