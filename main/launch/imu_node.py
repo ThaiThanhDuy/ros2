@@ -14,9 +14,11 @@ class IMUNode(Node):
         self.MPU_Init()
 
     def MPU_Init(self):
-        self.bus.write_byte_data(self.Device_Address, 0x6B, 1)
+        # Wake up the MPU6050 (0x6B is the power management register)
+        self.bus.write_byte_data(self.Device_Address, 0x6B, 0)
 
     def read_raw_data(self, addr):
+        # Read raw 16-bit data from the MPU6050
         high = self.bus.read_byte_data(self.Device_Address, addr)
         low = self.bus.read_byte_data(self.Device_Address, addr + 1)
         value = (high << 8) | low
@@ -26,9 +28,18 @@ class IMUNode(Node):
         imu_msg = Imu()
         imu_msg.header.stamp = self.get_clock().now().to_msg()
         imu_msg.header.frame_id = 'imu_link'
-        imu_msg.angular_velocity.x = self.read_raw_data(0x43)  # Gyro X
-        imu_msg.angular_velocity.y = self.read_raw_data(0x45)  # Gyro Y
-        imu_msg.angular_velocity.z = self.read_raw_data(0x47)  # Gyro Z
+
+        # Read raw gyro data
+        gyro_x_raw = self.read_raw_data(0x43)  # Gyro X
+        gyro_y_raw = self.read_raw_data(0x45)  # Gyro Y
+        gyro_z_raw = self.read_raw_data(0x47)  # Gyro Z
+
+        # Convert raw data to float (scale according to your needs)
+        gyro_scale = 131.0  # Scale factor for MPU6050 (assuming ±250°/s range)
+        imu_msg.angular_velocity.x = float(gyro_x_raw) / gyro_scale
+        imu_msg.angular_velocity.y = float(gyro_y_raw) / gyro_scale
+        imu_msg.angular_velocity.z = float(gyro_z_raw) / gyro_scale
+
         self.publisher_.publish(imu_msg)
 
 def main(args=None):
