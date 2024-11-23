@@ -48,13 +48,12 @@ class MPU6050Node(Node):
         imu_msg.header.frame_id = 'imu_link'  # Frame ID for the IMU
 
         # Fill in the IMU message
-        imu_msg.linear_acceleration.x = accel_x
-        imu_msg.linear_acceleration.y = accel_y
-        imu_msg.linear_acceleration.z = accel_z
-        imu_msg.angular_velocity.x = gyro_x
-        imu_msg.angular_velocity.y = gyro_y
-        imu_msg.angular_velocity.z = gyro_z
-
+        imu_msg.linear_acceleration.x = float(accel_x)
+        imu_msg.linear_acceleration.y = float(accel_y)
+        imu_msg.linear_acceleration.z = float(accel_z)
+        imu_msg.angular_velocity.x = float(gyro_x)
+        imu_msg.angular_velocity.y = float(gyro_y)
+        imu_msg.angular_velocity.z = float(gyro_z)
         self.publisher_.publish(imu_msg)
 
 def main(args=None):
