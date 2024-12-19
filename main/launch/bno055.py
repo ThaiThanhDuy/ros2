@@ -1,51 +1,29 @@
-import smbus
+import serial
 import time
 
-# BNO055 I2C address
-BNO055_ADDRESS = 0x28
+# Configure the serial port
+SERIAL_PORT = '/dev/serial0'  # Use /dev/serial0 for Raspberry Pi
+BAUD_RATE = 115200
 
-# BNO055 register addresses
-BNO055_REG_CHIP_ID = 0x00
-BNO055_REG_OPR_MODE = 0x3D
-BNO055_REG_SYS_TRIGGER = 0x3F
-BNO055_REG_EULER_H = 0x1A  # Start of Euler angles
+# Initialize the serial connection
+ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
 
-# Operation modes
-OPR_MODE_NDOF = 0x0C  # NDOF mode
-
-# Initialize I2C bus
-bus = smbus.SMBus(1)  # Use 1 for Raspberry Pi 2 and later
-
-# Function to read a byte from a register
-def read_byte(register):
-    return bus.read_byte_data(BNO055_ADDRESS, register)
-
-# Function to write a byte to a register
-def write_byte(register, value):
-    bus.write_byte_data(BNO055_ADDRESS, register, value)
-
-# Function to read 6 bytes of data (Euler angles)
+# Function to read 6 bytes of Euler angles
 def read_euler():
-    euler_data = bus.read_i2c_block_data(BNO055_ADDRESS, BNO055_REG_EULER_H, 6)
-    heading = (euler_data[0] | (euler_data[1] << 8)) / 16.0
-    roll = (euler_data[2] | (euler_data[3] << 8)) / 16.0
-    pitch = (euler_data[4] | (euler_data[5] << 8)) / 16.0
+    # Request data from the BNO055
+    ser.write(b'\x00')  # Send a command to read data (this may vary based on your setup)
+    time.sleep(0.1)  # Wait for the sensor to respond
+    data = ser.read(6)  # Read 6 bytes of data
+
+    # Convert the bytes to angles
+    heading = (data[0] | (data[1] << 8)) / 16.0
+    roll = (data[2] | (data[3] << 8)) / 16.0
+    pitch = (data[4] | (data[5] << 8)) / 16.0
     return heading, roll, pitch
 
 # Main program
 try:
-    # Check the chip ID
-    chip_id = read_byte(BNO055_REG_CHIP_ID)
-    print(f"BNO055 Chip ID: {chip_id}")
-
-    # Reset the sensor
-    write_byte(BNO055_REG_SYS_TRIGGER, 0x20)
-    time.sleep(0.5)
-
-    # Set the operation mode to NDOF
-    write_byte(BNO055_REG_OPR_MODE, OPR_MODE_NDOF)
-    time.sleep(0.5)
-
+    print("BNO055 Sensor Initialized")
     while True:
         heading, roll, pitch = read_euler()
         print(f"Orientation: Heading: {heading:.2f}, Roll: {roll:.2f}, Pitch: {pitch:.2f}")
@@ -55,3 +33,5 @@ except KeyboardInterrupt:
     print("Program stopped by User")
 except Exception as e:
     print(f"Error: {e}")
+finally:
+    ser.close()
